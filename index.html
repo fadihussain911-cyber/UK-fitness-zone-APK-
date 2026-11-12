@@ -56,6 +56,13 @@ header{background:linear-gradient(135deg,#1B4F9C,#0F2F63);color:#fff}header p{co
 .stat{border-left:5px solid var(--pri)}.stat.hot{border-left-color:var(--bad)}img.av{object-fit:cover}
 .bar{height:10px;border-radius:5px;margin:3px 0;min-width:2px}nav button{font-size:12px}
 #lock{position:fixed;inset:0;z-index:99;background:var(--bg);display:grid;place-items:center;text-align:center;padding:24px}#lock[hidden]{display:none}#lock input{text-align:center;font-size:28px;letter-spacing:8px;max-width:220px}
+
+.ss{position:relative;border-radius:14px;overflow:hidden;aspect-ratio:4/3;background:#0F2F63;margin:4px 0 14px;box-shadow:0 1px 3px var(--sh);cursor:pointer}
+.ss img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s}.ss img.on{opacity:1}
+.ss .cap{position:absolute;left:0;right:0;bottom:0;padding:34px 14px 24px;background:linear-gradient(transparent,rgba(0,0,0,.7));color:#fff;font-weight:800;font-size:18px}
+.ss .dots{position:absolute;bottom:9px;left:0;right:0;display:flex;justify-content:center;gap:6px}
+.ss .dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.55)}.ss .dots i.on{background:#F2C300}
+@media(prefers-reduced-motion:reduce){.ss img{transition:none}}
 </style>
 </head>
 <body>
@@ -92,7 +99,7 @@ function render(){
   $('#gname').textContent=db.gym;
   $('#sub').innerHTML=esc(new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))+'<br>'+esc(db.hours)+' · '+esc(db.phone);
   document.querySelectorAll('nav button').forEach(b=>{b.classList.toggle('on',b.dataset.t===tab);b.textContent=L(NL[b.dataset.t])});document.documentElement.dir=db.lang==='ur'?'rtl':'ltr';
-  $('#view').innerHTML=({home,members,att,money,more})[tab]();
+  $('#view').innerHTML=(tab==='home'?slides():'')+({home,members,att,money,more})[tab]();
 }
 
 function home(){
@@ -265,10 +272,15 @@ function expform(){open(`<h3>${L('Add expense')}</h3><label>What for (rent, bill
 function expsave(){const t=$('#et').value.trim(),a=+$('#ea').value;if(!t||!(a>0))return toast('Enter a title and amount');db.exp.push({id:uid(),t,a,d:today()});save();close();toast('Saved')}
 function expdel(id){if(confirm('Delete this expense?')){db.exp=db.exp.filter(x=>x.id!==id);save();render()}}
 function chkLock(){const l=$('#lock');if(db.pin&&!window._ul){l.hidden=false;l.innerHTML=`<div><img src="icon-192.png" width="96" height="96" style="border-radius:20px" alt=""><h2>${L('Enter PIN')}</h2><input id="pi" type="password" inputmode="numeric" maxlength="6" autofocus onkeyup="if(this.value===db.pin){_ul=1;$('#lock').hidden=true}"></div>`}else l.hidden=true}
+
+let _si=0;const NS=10;
+function slides(){return `<div class="ss" onclick="ssGo(1)">${Array.from({length:NS},(_,i)=>`<img src="gym${i+1}.jpg" alt="" class="${i===_si?'on':''}" loading="lazy" onerror="this.remove()">`).join('')}<div class="cap">${esc(db.gym)}<br><small style="color:#F2C300">${esc(db.hours)}</small></div><div class="dots"></div></div>`}
+function ssGo(d){const im=document.querySelectorAll('.ss img');if(!im.length)return;_si=(_si+d+im.length)%im.length;im.forEach((e,i)=>e.classList.toggle('on',i===_si));const dt=document.querySelector('.ss .dots');if(dt)dt.innerHTML=Array.from(im,(_,i)=>`<i class="${i===_si?'on':''}"></i>`).join('')}
+if(!matchMedia('(prefers-reduced-motion:reduce)').matches)setInterval(()=>{if(!document.hidden)ssGo(1)},3500);
 $('#nav').onclick=e=>{const t=e.target.dataset.t;if(t){tab=t;q='';render();scrollTo(0,0)}};
 $('#dlg').addEventListener('close',render);
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
-chkLock();render();
+chkLock();render();ssGo(0);
 </script>
 </body>
 </html>
