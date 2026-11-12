@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1B4F9C">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>UK Fitness Zone</title>
+<style>
+:root{--bg:#F2F4F1;--card:#fff;--ink:#17262B;--mute:#5E6E72;--line:#D9DFDC;--pri:#1B4F9C;--onpri:#fff;--bad:#B4350C;--ok:#2F7D4F;--warn:#9A6700;--sh:rgba(23,38,43,.08)}
+@media(prefers-color-scheme:dark){:root{--bg:#10191C;--card:#18262A;--ink:#EAF0EE;--mute:#93A5A8;--line:#2A3B40;--pri:#7DAEF5;--onpri:#0A1A33;--bad:#FF8A65;--ok:#6FD39A;--warn:#E8B84A;--sh:rgba(0,0,0,.3)}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding:env(safe-area-inset-top) 0 calc(72px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;gap:12px;padding:14px 16px 10px;border-bottom:4px solid #F2C300}header img{border-radius:12px;flex:none}
+header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-.3px}
+header p{margin:0;color:var(--mute);font-size:14px}
+main{padding:8px 16px 16px;max-width:720px;margin:0 auto}
+h2{font-size:17px;margin:20px 0 8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 1px 3px var(--sh)}
+.stat b{display:block;font-size:26px;font-weight:800;line-height:1.1}
+.stat span{color:var(--mute);font-size:13px}
+.stat.hot b{color:var(--bad)}
+.row{display:flex;align-items:center;gap:12px;background:var(--card);padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.list{border-radius:12px;overflow:hidden;box-shadow:0 1px 3px var(--sh)}
+.row:last-child{border-bottom:0}
+.av{width:40px;height:40px;border-radius:50%;background:var(--pri);color:var(--onpri);display:grid;place-items:center;font-weight:700;flex:none}
+.grow{flex:1;min-width:0}
+.grow b,.grow small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+small,.mute{color:var(--mute);font-size:13px}
+.tag{font-size:12px;font-weight:700;padding:2px 8px;border-radius:99px;border:1px solid currentColor}
+.Active{color:var(--ok)}.Expiring{color:var(--warn)}.Expired{color:var(--bad)}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin:4px 0 12px}
+label{font-size:13px;font-weight:600;color:var(--mute)}
+button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:11px 16px;background:var(--pri);color:var(--onpri);cursor:pointer}
+button.ghost{background:transparent;color:var(--pri);border:1.5px solid var(--pri)}
+button.del{background:transparent;color:var(--bad);border:1.5px solid var(--bad)}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.btns>*{flex:1 1 auto}
+nav{position:fixed;inset:auto 0 0 0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;color:var(--mute);border-radius:0;padding:12px 4px;font-size:13px}
+nav button.on{color:var(--pri);box-shadow:inset 0 3px var(--pri)}
+dialog{border:0;border-radius:16px;padding:18px;width:min(94vw,460px);max-height:90vh;background:var(--bg);color:var(--ink)}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+dialog h3{margin:0 0 10px;font-size:19px}
+.fab{position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));box-shadow:0 4px 12px var(--sh);padding:14px 20px;border-radius:99px}
+.rc{background:var(--card);border:1px dashed var(--line);border-radius:10px;padding:14px;font-size:14px;line-height:1.7}
+.empty{text-align:center;color:var(--mute);padding:28px 12px}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:99px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:1}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--pri);outline-offset:2px}
+@media print{body>*:not(dialog){display:none}dialog{box-shadow:none}dialog button{display:none}}
+</style>
+</head>
+<body>
+<header><img src="icon-192.png" alt="" width="52" height="52"><div><h1 id="gname">UK Fitness Zone</h1><p id="sub"></p></div></header>
+<main id="view"></main>
+<nav id="nav">
+<button data-t="home">Home</button><button data-t="members">Members</button><button data-t="att">Attendance</button><button data-t="more">Settings</button>
+</nav>
+<dialog id="dlg"></dialog>
+<div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const def={gym:'UK Fitness Zone',phone:'0312 2865302',hours:'Mon to Sat: 5:00 PM to 1:00 AM. Sunday closed.',plans:[{n:'Monthly',f:3000,d:30},{n:'Quarterly',f:8000,d:90},{n:'Yearly',f:30000,d:365}],m:[],p:[],a:{}};
+let db;
+try{db=JSON.parse(localStorage.getItem('gymdb')||'null')}catch(e){db=null}
+db=db||structuredClone(def);
+if(db.gym==='My Gym')db.gym=def.gym;db.phone=db.phone??def.phone;db.hours=db.hours??def.hours;
+const save=()=>{try{localStorage.setItem('gymdb',JSON.stringify(db))}catch(e){toast('Could not save. Storage is full or blocked.')}};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const addDays=(d,n)=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return new Date(x.getTime()-x.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+const rs=n=>'Rs '+Number(n||0).toLocaleString('en-PK');
+const due=m=>db.p.filter(x=>x.m===m.id).reduce((s,x)=>s+x.f-x.r,0);
+const status=m=>{const t=today();return m.exp<t?'Expired':m.exp<=addDays(t,7)?'Expiring':'Active'};
+const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),2200)};
+const phone=p=>{p=String(p||'').replace(/\D/g,'');return p.startsWith('0')?'92'+p.slice(1):p};
+const wa=(p,t)=>'https://wa.me/'+phone(p)+'?text='+encodeURIComponent(t);
+const close=()=>$('#dlg').close();
+const open=h=>{$('#dlg').innerHTML=h;$('#dlg').showModal()};
+let tab='home',q='',flt='all';
+
+function render(){
+  $('#gname').textContent=db.gym;
+  $('#sub').innerHTML=esc(new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))+'<br>'+esc(db.hours)+' · '+esc(db.phone);
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+  $('#view').innerHTML=({home,members,att,more})[tab]();
+}
+
+function home(){
+  const t=today(),ym=t.slice(0,7);
+  const act=db.m.filter(m=>status(m)!=='Expired').length;
+  const month=db.p.filter(x=>x.d.startsWith(ym)).reduce((s,x)=>s+x.r,0);
+  const todayc=db.p.filter(x=>x.d===t).reduce((s,x)=>s+x.r,0);
+  const owing=db.m.filter(m=>due(m)>0);
+  const owed=owing.reduce((s,m)=>s+due(m),0);
+  const soon=db.m.filter(m=>status(m)==='Expiring');
+  const gone=db.m.filter(m=>status(m)==='Expired');
+  const mini=(a,f)=>a.length?`<div class="list">${a.slice(0,6).map(f).join('')}</div>`:`<div class="empty">Nobody here.</div>`;
+  const line=(m,s)=>`<div class="row" onclick="detail('${m.id}')"><div class="grow"><b>${esc(m.name)}</b><small>${s}</small></div></div>`;
+  return `<div class="grid">
+  <div class="stat"><b>${act}</b><span>Active members</span></div>
+  <div class="stat"><b>${(db.a[t]||[]).length}</b><span>Checked in today</span></div>
+  <div class="stat"><b>${rs(month)}</b><span>Collected this month</span></div>
+  <div class="stat ${owed?'hot':''}"><b>${rs(owed)}</b><span>Unpaid fees</span></div></div>
+  <small>Today's collection: ${rs(todayc)}</small>
+  <h2>Unpaid fees (${owing.length})</h2>${mini(owing,m=>line(m,rs(due(m))+' due'))}
+  <h2>Expiring within 7 days (${soon.length})</h2>${mini(soon,m=>line(m,'Ends '+m.exp))}
+  <h2>Expired (${gone.length})</h2>${mini(gone,m=>line(m,'Ended '+m.exp))}`;
+}
+
+function members(){
+  const list=db.m.filter(m=>(!q||(m.name+m.phone).toLowerCase().includes(q.toLowerCase()))&&(flt==='all'||(flt==='due'?due(m)>0:status(m)===flt)));
+  return `<input id="q" placeholder="Search name or phone" value="${esc(q)}" oninput="q=this.value;keep()">
+  <select onchange="flt=this.value;render()">${[['all','All members'],['Active','Active'],['Expiring','Expiring soon'],['Expired','Expired'],['due','Unpaid fees']].map(([v,l])=>`<option value="${v}" ${flt===v?'selected':''}>${l}</option>`).join('')}</select>
+  ${list.length?`<div class="list">${list.map(m=>`<div class="row" onclick="detail('${m.id}')"><div class="av">${esc(m.name[0]||'?').toUpperCase()}</div><div class="grow"><b>${esc(m.name)}</b><small>${esc(m.plan)} · ends ${m.exp}${due(m)>0?' · owes '+rs(due(m)):''}</small></div><span class="tag ${status(m)}">${status(m)}</span></div>`).join('')}</div>`:`<div class="empty">${db.m.length?'No member matches.':'No members yet. Tap "Add member" to start.'}</div>`}
+  <button class="fab" onclick="mform()">Add member</button>`;
+}
+function keep(){const p=$('#q').selectionStart;render();const e=$('#q');e.focus();e.setSelectionRange(p,p)}
+
+function att(){
+  const t=today(),ins=db.a[t]||[];
+  const list=db.m.filter(m=>status(m)!=='Expired'&&(!q||m.name.toLowerCase().includes(q.toLowerCase())));
+  return `<h2 style="margin-top:4px">Check-in for today</h2>
+  <input id="q" placeholder="Search member" value="${esc(q)}" oninput="q=this.value;keep()">
+  ${list.length?`<div class="list">${list.map(m=>`<div class="row" onclick="checkin('${m.id}')"><div class="grow"><b>${esc(m.name)}</b><small>${due(m)>0?'Owes '+rs(due(m)):m.plan}</small></div>${ins.includes(m.id)?'<span class="tag Active">In</span>':'<span class="tag" style="color:var(--mute)">Check in</span>'}</div>`).join('')}</div>`:`<div class="empty">No active members.</div>`}`;
+}
+function checkin(id){const t=today();db.a[t]=db.a[t]||[];const i=db.a[t].indexOf(id);i<0?db.a[t].push(id):db.a[t].splice(i,1);save();render()}
+
+function more(){
+  return `<h2 style="margin-top:4px">Gym details</h2>
+  <label>Gym name</label><input id="gn" value="${esc(db.gym)}">
+  <label>Gym phone</label><input id="gph" type="tel" value="${esc(db.phone)}">
+  <label>Timings</label><input id="gh" value="${esc(db.hours)}">
+  <button onclick="db.gym=$('#gn').value.trim()||'UK Fitness Zone';db.phone=$('#gph').value.trim();db.hours=$('#gh').value.trim();save();render();toast('Saved')">Save details</button>
+  <h2>Plans and fees</h2>
+  <div class="list">${db.plans.map((p,i)=>`<div class="row" onclick="pform(${i})"><div class="grow"><b>${esc(p.n)}</b><small>${p.d} days</small></div><b>${rs(p.f)}</b></div>`).join('')}</div>
+  <div class="btns"><button class="ghost" onclick="pform(-1)">Add plan</button></div>
+  <h2>Backup</h2>
+  <p class="mute">Data lives only on this device. Download a backup regularly and keep it safe.</p>
+  <div class="btns"><button onclick="backup()">Download backup</button><button class="ghost" onclick="$('#rf').click()">Restore backup</button></div>
+  <input type="file" id="rf" accept=".json" hidden onchange="restore(this.files[0])">`;
+}
+function pform(i){
+  const p=db.plans[i]||{n:'',f:'',d:30};
+  open(`<h3>${i<0?'Add plan':'Edit plan'}</h3><label>Plan name</label><input id="pn" value="${esc(p.n)}"><label>Fee (Rs)</label><input id="pf" type="number" inputmode="numeric" value="${p.f}"><label>Days</label><input id="pd" type="number" inputmode="numeric" value="${p.d}">
+  <div class="btns"><button onclick="psave(${i})">Save</button>${i>=0?`<button class="del" onclick="pdel(${i})">Delete</button>`:''}<button class="ghost" onclick="close()">Cancel</button></div>`);
+}
+function psave(i){const n=$('#pn').value.trim(),f=+$('#pf').value,d=+$('#pd').value;if(!n||!(d>0)||f<0)return toast('Fill name, fee and days');const o={n,f,d};i<0?db.plans.push(o):db.plans[i]=o;save();close();render()}
+function pdel(i){if(confirm('Delete this plan? Existing members keep their records.')){db.plans.splice(i,1);save();close();render()}}
+function backup(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db)],{type:'application/json'}));a.download='gym-backup-'+today()+'.json';a.click();toast('Backup downloaded')}
+function restore(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.m||!d.p||!d.plans)throw 0;if(confirm('This replaces all current data. Continue?')){db=d;save();render();toast('Restored')}}catch(e){toast('This is not a valid backup file')}};r.readAsText(f)}
+
+function mform(id){
+  const m=db.m.find(x=>x.id===id)||{name:'',phone:'',plan:db.plans[0]?.n||'',note:''};
+  open(`<h3>${id?'Edit member':'Add member'}</h3>
+  <label>Name</label><input id="mn" value="${esc(m.name)}">
+  <label>Phone (WhatsApp)</label><input id="mp" type="tel" inputmode="tel" value="${esc(m.phone)}" placeholder="03XX XXXXXXX">
+  ${id?'':`<label>Plan</label><select id="mpl">${db.plans.map((p,i)=>`<option value="${i}">${esc(p.n)} · ${rs(p.f)}</option>`).join('')}</select>
+  <label>Fee paid now (Rs)</label><input id="mpaid" type="number" inputmode="numeric" placeholder="0 if not paid yet">`}
+  <label>Note</label><input id="mnote" value="${esc(m.note)}" placeholder="Timing, trainer, health">
+  <div class="btns"><button onclick="msave('${id||''}')">Save</button><button class="ghost" onclick="close()">Cancel</button></div>`);
+}
+function msave(id){
+  const name=$('#mn').value.trim();if(!name)return toast('Enter a name');
+  const phone=$('#mp').value.trim(),note=$('#mnote').value.trim();
+  if(id){const m=db.m.find(x=>x.id===id);Object.assign(m,{name,phone,note});}
+  else{
+    const pl=db.plans[+$('#mpl').value];if(!pl)return toast('Add a plan in Settings first');
+    const m={id:uid(),name,phone,note,plan:pl.n,join:today(),exp:addDays(today(),pl.d)};db.m.push(m);
+    db.p.push({id:uid(),m:m.id,d:today(),plan:pl.n,f:pl.f,r:Math.max(0,+$('#mpaid').value||0),meth:'Cash',days:pl.d});
+  }
+  save();close();render();toast('Saved');
+}
+
+function detail(id){
+  const m=db.m.find(x=>x.id===id);if(!m)return;
+  const ps=db.p.filter(x=>x.m===id).sort((a,b)=>b.d.localeCompare(a.d));
+  const dd=due(m),days=db.plans.length;
+  open(`<h3>${esc(m.name)} <span class="tag ${status(m)}">${status(m)}</span></h3>
+  <p class="mute" style="margin:0 0 10px">${esc(m.phone)||'No phone'} · ${esc(m.plan)}<br>Joined ${m.join} · Ends ${m.exp}${m.note?'<br>'+esc(m.note):''}</p>
+  ${dd>0?`<div class="stat hot" style="margin-bottom:10px"><b>${rs(dd)}</b><span>Unpaid fees</span></div>`:''}
+  <div class="btns"><button onclick="payform('${id}')">Take payment</button>${m.phone?`<button class="ghost" onclick="remind('${id}')">WhatsApp reminder</button>`:''}</div>
+  <h2>Payments</h2>
+  ${ps.length?`<div class="list">${ps.map(x=>`<div class="row" onclick="receipt('${x.id}')"><div class="grow"><b>${rs(x.r)} paid</b><small>${x.d} · ${esc(x.plan)} · ${x.meth}${x.f-x.r>0?' · left '+rs(x.f-x.r):''}</small></div><small>Receipt</small></div>`).join('')}</div>`:'<div class="empty">No payments yet.</div>'}
+  <div class="btns" style="margin-top:14px"><button class="ghost" onclick="mform('${id}')">Edit</button><button class="del" onclick="mdel('${id}')">Delete</button><button class="ghost" onclick="close()">Close</button></div>`);
+}
+function mdel(id){if(confirm('Delete this member and all their payments?')){db.m=db.m.filter(x=>x.id!==id);db.p=db.p.filter(x=>x.m!==id);Object.keys(db.a).forEach(k=>db.a[k]=db.a[k].filter(x=>x!==id));save();close();render()}}
+function remind(id){
+  const m=db.m.find(x=>x.id===id),d=due(m);
+  const t=`Assalam o Alaikum ${m.name}, ${db.gym} ki taraf se reminder: `+(d>0?`aap ki ${rs(d)} fees baqaya hai. `:'')+(m.exp<today()?`Membership ${m.exp} ko khatam ho chuki hai.`:`Membership ${m.exp} ko khatam ho rahi hai.`)+` Rabta: ${db.phone}. Shukriya.`;
+  window.open(wa(m.phone,t),'_blank');
+}
+
+function payform(id){
+  const m=db.m.find(x=>x.id===id),dd=due(m);
+  open(`<h3>Take payment: ${esc(m.name)}</h3>
+  <label>What is this for?</label>
+  <select id="py" onchange="payset()"><option value="due" ${dd>0?'selected':''}>Pay unpaid fees (${rs(Math.max(dd,0))})</option>${db.plans.map((p,i)=>`<option value="${i}" ${dd<=0&&i===0?'selected':''}>Renew: ${esc(p.n)} · ${rs(p.f)}</option>`).join('')}</select>
+  <label>Amount received (Rs)</label><input id="pa" type="number" inputmode="numeric">
+  <label>Method</label><select id="pm"><option>Cash</option><option>JazzCash</option><option>Easypaisa</option><option>Bank transfer</option><option>Card</option></select>
+  <div class="btns"><button onclick="paysave('${id}')">Save payment</button><button class="ghost" onclick="detail('${id}')">Back</button></div>`);
+  payset(id);
+}
+function payset(id){
+  const v=$('#py').value;
+  if(v==='due'){const m=db.m.find(x=>x.id===(id||window._pid));$('#pa').value=Math.max(due(m),0)||''}
+  else $('#pa').value=db.plans[+v]?.f??'';
+}
+function paysave(id){
+  const m=db.m.find(x=>x.id===id),v=$('#py').value,r=Math.max(0,+$('#pa').value||0);
+  if(!r&&v==='due')return toast('Enter the amount received');
+  const meth=$('#pm').value;
+  if(v==='due'){db.p.push({id:uid(),m:id,d:today(),plan:'Fee due payment',f:0,r,meth,days:0})}
+  else{const pl=db.plans[+v];const from=m.exp>today()?m.exp:today();m.exp=addDays(from,pl.d);m.plan=pl.n;
+    db.p.push({id:uid(),m:id,d:today(),plan:pl.n,f:pl.f,r,meth,days:pl.d})}
+  save();render();receipt(db.p[db.p.length-1].id);
+}
+const _pf=payform;payform=function(id){window._pid=id;_pf(id)};
+
+function receipt(pid){
+  const x=db.p.find(p=>p.id===pid),m=db.m.find(a=>a.id===x.m);
+  const left=due(m);
+  const txt=`${db.gym}\nPhone: ${db.phone}\nReceipt\nDate: ${x.d}\nMember: ${m.name}\nFor: ${x.plan}\nPaid: ${rs(x.r)} (${x.meth})\nTotal unpaid: ${rs(Math.max(left,0))}\nValid till: ${m.exp}\nShukriya!`;
+  open(`<h3>Receipt</h3><div class="rc">${esc(txt).replace(/\n/g,'<br>')}</div>
+  <div class="btns" style="margin-top:12px">${m.phone?`<button onclick="window.open(wa('${esc(m.phone)}',${esc(JSON.stringify(txt))}),'_blank')">Send on WhatsApp</button>`:''}<button class="ghost" onclick="print()">Print</button><button class="ghost" onclick="detail('${m.id}')">Back</button></div>`);
+}
+
+$('#nav').onclick=e=>{const t=e.target.dataset.t;if(t){tab=t;q='';render();scrollTo(0,0)}};
+$('#dlg').addEventListener('close',render);
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+render();
+</script>
+</body>
+</html>
