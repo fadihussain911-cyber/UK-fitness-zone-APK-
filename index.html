@@ -52,16 +52,20 @@ dialog h3{margin:0 0 10px;font-size:19px}
 #toast.on{opacity:1}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--pri);outline-offset:2px}
 @media print{body>*:not(dialog){display:none}dialog{box-shadow:none}dialog button{display:none}}
+header{background:linear-gradient(135deg,#1B4F9C,#0F2F63);color:#fff}header p{color:#cfe0ff}header h1{color:#fff}
+.stat{border-left:5px solid var(--pri)}.stat.hot{border-left-color:var(--bad)}img.av{object-fit:cover}
+.bar{height:10px;border-radius:5px;margin:3px 0;min-width:2px}nav button{font-size:12px}
+#lock{position:fixed;inset:0;z-index:99;background:var(--bg);display:grid;place-items:center;text-align:center;padding:24px}#lock[hidden]{display:none}#lock input{text-align:center;font-size:28px;letter-spacing:8px;max-width:220px}
 </style>
 </head>
 <body>
 <header><img src="icon-192.png" alt="" width="52" height="52"><div><h1 id="gname">UK Fitness Zone</h1><p id="sub"></p></div></header>
 <main id="view"></main>
 <nav id="nav">
-<button data-t="home">Home</button><button data-t="members">Members</button><button data-t="att">Attendance</button><button data-t="more">Settings</button>
+<button data-t="home">Home</button><button data-t="members">Members</button><button data-t="att">Attendance</button><button data-t="money">Money</button><button data-t="more">Settings</button>
 </nav>
 <dialog id="dlg"></dialog>
-<div id="toast"></div>
+<div id="toast"></div><div id="lock" hidden></div>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -69,7 +73,7 @@ const def={gym:'UK Fitness Zone',phone:'0312 2865302',hours:'Mon to Sat: 5:00 PM
 let db;
 try{db=JSON.parse(localStorage.getItem('gymdb')||'null')}catch(e){db=null}
 db=db||structuredClone(def);
-if(db.gym==='My Gym')db.gym=def.gym;db.phone=db.phone??def.phone;db.hours=db.hours??def.hours;
+if(db.gym==='My Gym')db.gym=def.gym;db.phone=db.phone??def.phone;db.hours=db.hours??def.hours;db.exp=db.exp||[];db.pin=db.pin||'';db.lang=db.lang||'en';
 const save=()=>{try{localStorage.setItem('gymdb',JSON.stringify(db))}catch(e){toast('Could not save. Storage is full or blocked.')}};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
@@ -87,8 +91,8 @@ let tab='home',q='',flt='all';
 function render(){
   $('#gname').textContent=db.gym;
   $('#sub').innerHTML=esc(new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}))+'<br>'+esc(db.hours)+' · '+esc(db.phone);
-  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
-  $('#view').innerHTML=({home,members,att,more})[tab]();
+  document.querySelectorAll('nav button').forEach(b=>{b.classList.toggle('on',b.dataset.t===tab);b.textContent=L(NL[b.dataset.t])});document.documentElement.dir=db.lang==='ur'?'rtl':'ltr';
+  $('#view').innerHTML=({home,members,att,money,more})[tab]();
 }
 
 function home(){
@@ -103,22 +107,22 @@ function home(){
   const mini=(a,f)=>a.length?`<div class="list">${a.slice(0,6).map(f).join('')}</div>`:`<div class="empty">Nobody here.</div>`;
   const line=(m,s)=>`<div class="row" onclick="detail('${m.id}')"><div class="grow"><b>${esc(m.name)}</b><small>${s}</small></div></div>`;
   return `<div class="grid">
-  <div class="stat"><b>${act}</b><span>Active members</span></div>
-  <div class="stat"><b>${(db.a[t]||[]).length}</b><span>Checked in today</span></div>
-  <div class="stat"><b>${rs(month)}</b><span>Collected this month</span></div>
-  <div class="stat ${owed?'hot':''}"><b>${rs(owed)}</b><span>Unpaid fees</span></div></div>
-  <small>Today's collection: ${rs(todayc)}</small>
-  <h2>Unpaid fees (${owing.length})</h2>${mini(owing,m=>line(m,rs(due(m))+' due'))}
-  <h2>Expiring within 7 days (${soon.length})</h2>${mini(soon,m=>line(m,'Ends '+m.exp))}
-  <h2>Expired (${gone.length})</h2>${mini(gone,m=>line(m,'Ended '+m.exp))}`;
+  <div class="stat"><b>${act}</b><span>${L('Active members')}</span></div>
+  <div class="stat"><b>${(db.a[t]||[]).length}</b><span>${L('Checked in today')}</span></div>
+  <div class="stat"><b>${rs(month)}</b><span>${L('Collected this month')}</span></div>
+  <div class="stat ${owed?'hot':''}"><b>${rs(owed)}</b><span>${L('Unpaid fees')}</span></div></div>
+  <small>Today's collection: ${rs(todayc)}</small><div class="btns" style="margin:10px 0"><button onclick="bulk()">${L('Send reminders')}</button></div>
+  <h2>${L('Unpaid fees')} (${owing.length})</h2>${mini(owing,m=>line(m,rs(due(m))+' due'))}
+  <h2>${L('Expiring within 7 days')} (${soon.length})</h2>${mini(soon,m=>line(m,'Ends '+m.exp))}
+  <h2>${L('Expired')} (${gone.length})</h2>${mini(gone,m=>line(m,'Ended '+m.exp))}`;
 }
 
 function members(){
   const list=db.m.filter(m=>(!q||(m.name+m.phone).toLowerCase().includes(q.toLowerCase()))&&(flt==='all'||(flt==='due'?due(m)>0:status(m)===flt)));
   return `<input id="q" placeholder="Search name or phone" value="${esc(q)}" oninput="q=this.value;keep()">
   <select onchange="flt=this.value;render()">${[['all','All members'],['Active','Active'],['Expiring','Expiring soon'],['Expired','Expired'],['due','Unpaid fees']].map(([v,l])=>`<option value="${v}" ${flt===v?'selected':''}>${l}</option>`).join('')}</select>
-  ${list.length?`<div class="list">${list.map(m=>`<div class="row" onclick="detail('${m.id}')"><div class="av">${esc(m.name[0]||'?').toUpperCase()}</div><div class="grow"><b>${esc(m.name)}</b><small>${esc(m.plan)} · ends ${m.exp}${due(m)>0?' · owes '+rs(due(m)):''}</small></div><span class="tag ${status(m)}">${status(m)}</span></div>`).join('')}</div>`:`<div class="empty">${db.m.length?'No member matches.':'No members yet. Tap "Add member" to start.'}</div>`}
-  <button class="fab" onclick="mform()">Add member</button>`;
+  ${list.length?`<div class="list">${list.map(m=>`<div class="row" onclick="detail('${m.id}')">${av(m)}<div class="grow"><b>${esc(m.name)}</b><small>${esc(m.plan)} · ends ${m.exp}${due(m)>0?' · owes '+rs(due(m)):''}</small></div><span class="tag ${status(m)}">${status(m)}</span></div>`).join('')}</div>`:`<div class="empty">${db.m.length?'No member matches.':'No members yet. Tap "Add member" to start.'}</div>`}
+  <button class="fab" onclick="mform()">${L('Add member')}</button>`;
 }
 function keep(){const p=$('#q').selectionStart;render();const e=$('#q');e.focus();e.setSelectionRange(p,p)}
 
@@ -140,6 +144,8 @@ function more(){
   <h2>Plans and fees</h2>
   <div class="list">${db.plans.map((p,i)=>`<div class="row" onclick="pform(${i})"><div class="grow"><b>${esc(p.n)}</b><small>${p.d} days</small></div><b>${rs(p.f)}</b></div>`).join('')}</div>
   <div class="btns"><button class="ghost" onclick="pform(-1)">Add plan</button></div>
+  <h2>Security</h2><label>App PIN (leave blank to remove)</label><input id="np" type="password" inputmode="numeric" maxlength="6" value="${esc(db.pin)}"><button onclick="db.pin=$('#np').value.trim();save();toast(db.pin?'PIN saved':'PIN removed')">Save PIN</button>
+  <h2>Language</h2><div class="btns"><button class="${db.lang==='en'?'':'ghost'}" onclick="db.lang='en';save();render()">English</button><button class="${db.lang==='ur'?'':'ghost'}" onclick="db.lang='ur';save();render()">اردو</button></div>
   <h2>Backup</h2>
   <p class="mute">Data lives only on this device. Download a backup regularly and keep it safe.</p>
   <div class="btns"><button onclick="backup()">Download backup</button><button class="ghost" onclick="$('#rf').click()">Restore backup</button></div>
@@ -155,23 +161,23 @@ function pdel(i){if(confirm('Delete this plan? Existing members keep their recor
 function backup(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db)],{type:'application/json'}));a.download='gym-backup-'+today()+'.json';a.click();toast('Backup downloaded')}
 function restore(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.m||!d.p||!d.plans)throw 0;if(confirm('This replaces all current data. Continue?')){db=d;save();render();toast('Restored')}}catch(e){toast('This is not a valid backup file')}};r.readAsText(f)}
 
-function mform(id){
+function mform(id){window._ph=null;
   const m=db.m.find(x=>x.id===id)||{name:'',phone:'',plan:db.plans[0]?.n||'',note:''};
   open(`<h3>${id?'Edit member':'Add member'}</h3>
   <label>Name</label><input id="mn" value="${esc(m.name)}">
   <label>Phone (WhatsApp)</label><input id="mp" type="tel" inputmode="tel" value="${esc(m.phone)}" placeholder="03XX XXXXXXX">
   ${id?'':`<label>Plan</label><select id="mpl">${db.plans.map((p,i)=>`<option value="${i}">${esc(p.n)} · ${rs(p.f)}</option>`).join('')}</select>
   <label>Fee paid now (Rs)</label><input id="mpaid" type="number" inputmode="numeric" placeholder="0 if not paid yet">`}
-  <label>Note</label><input id="mnote" value="${esc(m.note)}" placeholder="Timing, trainer, health">
+  <label>Photo (optional)</label><input type="file" accept="image/*" onchange="phot(this.files[0])"><label>Note</label><input id="mnote" value="${esc(m.note)}" placeholder="Timing, trainer, health">
   <div class="btns"><button onclick="msave('${id||''}')">Save</button><button class="ghost" onclick="close()">Cancel</button></div>`);
 }
 function msave(id){
   const name=$('#mn').value.trim();if(!name)return toast('Enter a name');
   const phone=$('#mp').value.trim(),note=$('#mnote').value.trim();
-  if(id){const m=db.m.find(x=>x.id===id);Object.assign(m,{name,phone,note});}
+  if(id){const m=db.m.find(x=>x.id===id);Object.assign(m,{name,phone,note});if(window._ph)m.ph=window._ph;}
   else{
     const pl=db.plans[+$('#mpl').value];if(!pl)return toast('Add a plan in Settings first');
-    const m={id:uid(),name,phone,note,plan:pl.n,join:today(),exp:addDays(today(),pl.d)};db.m.push(m);
+    const m={id:uid(),name,phone,note,ph:window._ph||'',plan:pl.n,join:today(),exp:addDays(today(),pl.d)};db.m.push(m);
     db.p.push({id:uid(),m:m.id,d:today(),plan:pl.n,f:pl.f,r:Math.max(0,+$('#mpaid').value||0),meth:'Cash',days:pl.d});
   }
   save();close();render();toast('Saved');
@@ -183,8 +189,11 @@ function detail(id){
   const dd=due(m),days=db.plans.length;
   open(`<h3>${esc(m.name)} <span class="tag ${status(m)}">${status(m)}</span></h3>
   <p class="mute" style="margin:0 0 10px">${esc(m.phone)||'No phone'} · ${esc(m.plan)}<br>Joined ${m.join} · Ends ${m.exp}${m.note?'<br>'+esc(m.note):''}</p>
-  ${dd>0?`<div class="stat hot" style="margin-bottom:10px"><b>${rs(dd)}</b><span>Unpaid fees</span></div>`:''}
+  ${dd>0?`<div class="stat hot" style="margin-bottom:10px"><b>${rs(dd)}</b><span>${L('Unpaid fees')}</span></div>`:''}
   <div class="btns"><button onclick="payform('${id}')">Take payment</button>${m.phone?`<button class="ghost" onclick="remind('${id}')">WhatsApp reminder</button>`:''}</div>
+  <h2>${L('Training')}</h2><div class="rc" style="white-space:pre-wrap">Trainer: ${esc(m.tr||'-')}
+Workout: ${esc(m.wo||'-')}
+Diet: ${esc(m.di||'-')}</div><div class="btns" style="margin-top:8px"><button class="ghost" onclick="tform('${id}')">Edit plan</button>${m.phone&&(m.wo||m.di)?`<button class="ghost" onclick="window.open(wa('${esc(m.phone)}',${esc(JSON.stringify('Workout: '+(m.wo||'-')+'\nDiet: '+(m.di||'-')))}),'_blank')">Send plan</button>`:''}</div>
   <h2>Payments</h2>
   ${ps.length?`<div class="list">${ps.map(x=>`<div class="row" onclick="receipt('${x.id}')"><div class="grow"><b>${rs(x.r)} paid</b><small>${x.d} · ${esc(x.plan)} · ${x.meth}${x.f-x.r>0?' · left '+rs(x.f-x.r):''}</small></div><small>Receipt</small></div>`).join('')}</div>`:'<div class="empty">No payments yet.</div>'}
   <div class="btns" style="margin-top:14px"><button class="ghost" onclick="mform('${id}')">Edit</button><button class="del" onclick="mdel('${id}')">Delete</button><button class="ghost" onclick="close()">Close</button></div>`);
@@ -230,10 +239,36 @@ function receipt(pid){
   <div class="btns" style="margin-top:12px">${m.phone?`<button onclick="window.open(wa('${esc(m.phone)}',${esc(JSON.stringify(txt))}),'_blank')">Send on WhatsApp</button>`:''}<button class="ghost" onclick="print()">Print</button><button class="ghost" onclick="detail('${m.id}')">Back</button></div>`);
 }
 
+
+const NL={home:'Home',members:'Members',att:'Attendance',money:'Money',more:'Settings'};
+const UR={'Home':'ہوم','Members':'ممبرز','Attendance':'حاضری','Money':'حساب','Settings':'سیٹنگز','Active members':'فعال ممبرز','Checked in today':'آج کی حاضری','Collected this month':'اس مہینے کی وصولی','Unpaid fees':'بقایا فیس','Expiring within 7 days':'7 دن میں ختم ہونے والے','Expired':'ختم شدہ','Send reminders':'ریمائنڈر بھیجیں','Add member':'ممبر شامل کریں','Income':'آمدنی','Expenses':'اخراجات','Profit this month':'اس مہینے کا منافع','Last 6 months':'پچھلے 6 مہینے','Add expense':'خرچہ شامل کریں','Enter PIN':'پن درج کریں','Training':'ٹریننگ'};
+const L=k=>db.lang==='ur'&&UR[k]||k;
+const av=m=>m.ph?`<img class="av" src="${m.ph}" alt="">`:`<div class="av">${esc((m.name[0]||'?')).toUpperCase()}</div>`;
+function phot(f){if(!f)return;const r=new FileReader();r.onload=()=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');c.width=c.height=160;const x=c.getContext('2d'),s=Math.min(i.width,i.height);x.drawImage(i,(i.width-s)/2,(i.height-s)/2,s,s,0,0,160,160);window._ph=c.toDataURL('image/jpeg',.7);toast('Photo ready')};i.src=r.result};r.readAsDataURL(f)}
+function tform(id){const m=db.m.find(x=>x.id===id);open(`<h3>Training plan: ${esc(m.name)}</h3><label>Trainer</label><input id="tt" value="${esc(m.tr)}"><label>Workout plan</label><textarea id="tw" rows="5">${esc(m.wo)}</textarea><label>Diet chart</label><textarea id="td" rows="5">${esc(m.di)}</textarea><div class="btns"><button onclick="tsave('${id}')">Save</button><button class="ghost" onclick="detail('${id}')">Back</button></div>`)}
+function tsave(id){const m=db.m.find(x=>x.id===id);m.tr=$('#tt').value.trim();m.wo=$('#tw').value.trim();m.di=$('#td').value.trim();save();detail(id);toast('Saved')}
+function bulk(){const l=db.m.filter(m=>m.phone&&(due(m)>0||status(m)!=='Active'));open(`<h3>${L('Send reminders')}</h3>${l.length?`<p class="mute">Tap a name. WhatsApp opens with the message ready.</p><div class="list">${l.map(m=>`<div class="row" id="b${m.id}" onclick="sendr('${m.id}')"><div class="grow"><b>${esc(m.name)}</b><small>${due(m)>0?rs(due(m))+' due · ':''}${status(m)}</small></div><span class="tag">Send</span></div>`).join('')}</div>`:'<div class="empty">Nobody needs a reminder.</div>'}<div class="btns" style="margin-top:12px"><button class="ghost" onclick="close()">Close</button></div>`)}
+function sendr(id){remind(id);const e=document.querySelector('#b'+id+' .tag');e.textContent='Sent ✓';e.classList.add('Active')}
+const sum=(a,ym,k)=>a.filter(x=>x.d.startsWith(ym)).reduce((s,x)=>s+x[k],0);
+function money(){
+  const ym=today().slice(0,7),inc=sum(db.p,ym,'r'),ex=sum(db.exp,ym,'a'),ms=[];
+  for(let i=5;i>=0;i--){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);ms.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'))}
+  const v=ms.map(k=>[k,sum(db.p,k,'r'),sum(db.exp,k,'a')]),mx=Math.max(1,...v.flatMap(x=>[x[1],x[2]]));
+  const list=[...db.exp].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,20);
+  return `<div class="grid"><div class="stat"><b>${rs(inc)}</b><span>${L('Income')}</span></div><div class="stat hot"><b>${rs(ex)}</b><span>${L('Expenses')}</span></div></div>
+  <div class="stat" style="margin-top:10px"><b style="color:${inc-ex<0?'var(--bad)':'var(--ok)'}">${rs(inc-ex)}</b><span>${L('Profit this month')}</span></div>
+  <h2>${L('Last 6 months')}</h2><div class="stat"><small>Blue: income. Yellow: expenses.</small>${v.map(([k,a,b])=>`<div style="margin:8px 0"><small>${k} · ${rs(a)} / ${rs(b)}</small><div class="bar" style="width:${a/mx*100}%;background:var(--pri)"></div><div class="bar" style="width:${b/mx*100}%;background:#F2C300"></div></div>`).join('')}</div>
+  <h2>${L('Expenses')}</h2>${list.length?`<div class="list">${list.map(x=>`<div class="row" onclick="expdel('${x.id}')"><div class="grow"><b>${esc(x.t)}</b><small>${x.d}</small></div><b>${rs(x.a)}</b></div>`).join('')}</div><small>Tap an expense to delete it.</small>`:'<div class="empty">No expenses yet. Add rent, bills, salaries.</div>'}
+  <button class="fab" onclick="expform()">${L('Add expense')}</button>`;
+}
+function expform(){open(`<h3>${L('Add expense')}</h3><label>What for (rent, bill, salary...)</label><input id="et"><label>Amount (Rs)</label><input id="ea" type="number" inputmode="numeric"><div class="btns"><button onclick="expsave()">Save</button><button class="ghost" onclick="close()">Cancel</button></div>`)}
+function expsave(){const t=$('#et').value.trim(),a=+$('#ea').value;if(!t||!(a>0))return toast('Enter a title and amount');db.exp.push({id:uid(),t,a,d:today()});save();close();toast('Saved')}
+function expdel(id){if(confirm('Delete this expense?')){db.exp=db.exp.filter(x=>x.id!==id);save();render()}}
+function chkLock(){const l=$('#lock');if(db.pin&&!window._ul){l.hidden=false;l.innerHTML=`<div><img src="icon-192.png" width="96" height="96" style="border-radius:20px" alt=""><h2>${L('Enter PIN')}</h2><input id="pi" type="password" inputmode="numeric" maxlength="6" autofocus onkeyup="if(this.value===db.pin){_ul=1;$('#lock').hidden=true}"></div>`}else l.hidden=true}
 $('#nav').onclick=e=>{const t=e.target.dataset.t;if(t){tab=t;q='';render();scrollTo(0,0)}};
 $('#dlg').addEventListener('close',render);
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
-render();
+chkLock();render();
 </script>
 </body>
 </html>
